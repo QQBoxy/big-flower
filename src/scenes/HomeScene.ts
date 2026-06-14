@@ -186,8 +186,8 @@ export class HomeScene extends Phaser.Scene {
         if (totalWidth <= 640) {
           newX = 360 - totalWidth / 2 + itemWidth / 2;
         } else {
-          const minX = 720 - totalWidth - 40;
-          const maxX = 40;
+          const maxX = 40 + itemWidth / 2;
+          const minX = 720 - 40 - totalWidth + itemWidth / 2;
           if (newX > maxX) newX = maxX;
           if (newX < minX) newX = minX;
         }
@@ -202,8 +202,8 @@ export class HomeScene extends Phaser.Scene {
         if (totalWidth <= 640) {
           newX = 360 - totalWidth / 2 + itemWidth / 2;
         } else {
-          const minX = 720 - totalWidth - 40;
-          const maxX = 40;
+          const maxX = 40 + itemWidth / 2;
+          const minX = 720 - 40 - totalWidth + itemWidth / 2;
           if (newX > maxX) newX = maxX;
           if (newX < minX) newX = minX;
         }
@@ -317,8 +317,8 @@ export class HomeScene extends Phaser.Scene {
     if (totalWidth <= 640) {
       this.colorsContainer.x = 360 - totalWidth / 2 + itemWidth / 2;
     } else {
-      const minX = 720 - totalWidth - 40;
-      const maxX = 40;
+      const maxX = 40 + itemWidth / 2;
+      const minX = 720 - 40 - totalWidth + itemWidth / 2;
       if (this.colorsContainer.x > maxX || this.colorsContainer.x === 0) {
         this.colorsContainer.x = maxX;
       } else if (this.colorsContainer.x < minX) {
@@ -405,8 +405,8 @@ export class HomeScene extends Phaser.Scene {
     if (totalWidth <= 640) {
       this.patternsContainer.x = 360 - totalWidth / 2 + itemWidth / 2;
     } else {
-      const minX = 720 - totalWidth - 40;
-      const maxX = 40;
+      const maxX = 40 + itemWidth / 2;
+      const minX = 720 - 40 - totalWidth + itemWidth / 2;
       if (this.patternsContainer.x > maxX || this.patternsContainer.x === 0) {
         this.patternsContainer.x = maxX;
       } else if (this.patternsContainer.x < minX) {
@@ -572,8 +572,9 @@ export class HomeScene extends Phaser.Scene {
     // 2. 彈窗 Container 放在畫面正中央，並實作彈出動畫
     const dialogContainer = this.add.container(width / 2, height / 2);
 
+    const canInstall = !!window.deferredPrompt;
     const dialogW = 540;
-    const dialogH = 450;
+    const dialogH = canInstall ? 600 : 420;
 
     // 關閉邏輯動畫 (先宣告以供按鈕 callback 使用)
     const closeModal = () => {
@@ -588,12 +589,41 @@ export class HomeScene extends Phaser.Scene {
       });
     };
 
+    // 點擊灰色半透明遮罩可關閉設定彈窗並返回遊戲
+    overlay.on('pointerdown', () => {
+      soundManager.playClick();
+      closeModal();
+    });
+
     // 彈窗背景
     const dialogBox = this.add.graphics();
     dialogBox.fillStyle(0xffffff, 1);
     dialogBox.fillRoundedRect(-dialogW / 2, -dialogH / 2, dialogW, dialogH, 32);
     dialogBox.lineStyle(6, 0xff80ab, 1);
     dialogBox.strokeRoundedRect(-dialogW / 2, -dialogH / 2, dialogW, dialogH, 32);
+
+    // 畫分隔線
+    if (canInstall) {
+      dialogBox.lineStyle(2, 0xff80ab, 0.3);
+      // 第一條分隔線：在 Install 區與 Reset 區之間 (y: -40 處)
+      dialogBox.beginPath();
+      dialogBox.moveTo(-dialogW / 2 + 40, -40);
+      dialogBox.lineTo(dialogW / 2 - 40, -40);
+      dialogBox.strokePath();
+
+      // 第二條分隔線：在 Reset 區與 返回遊戲 按鈕之間 (y: 160 處)
+      dialogBox.beginPath();
+      dialogBox.moveTo(-dialogW / 2 + 40, 160);
+      dialogBox.lineTo(dialogW / 2 - 40, 160);
+      dialogBox.strokePath();
+    } else {
+      // 僅有重置紀錄時，在 Reset 區與 返回遊戲 之間畫一條線 (y: 50 處)
+      dialogBox.lineStyle(2, 0xff80ab, 0.3);
+      dialogBox.beginPath();
+      dialogBox.moveTo(-dialogW / 2 + 40, 50);
+      dialogBox.lineTo(dialogW / 2 - 40, 50);
+      dialogBox.strokePath();
+    }
 
     // 標題 Ribbon
     const ribbon = this.add.graphics();
@@ -607,47 +637,130 @@ export class HomeScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // 提示說明文字
-    const descText = this.add.text(0, -50, '是否要清除所有獲得的顏色與花紋？\n清除後將無法恢復喔！', {
-      fontFamily: 'Fredoka',
-      fontSize: '24px',
-      color: '#4e342e',
-      fontStyle: 'bold',
-      align: 'center',
-      lineSpacing: 10
-    }).setOrigin(0.5);
-
-    // 3. 清除按鈕 (3D 卡漫風格)
-    const clearBtn = this.createCute3DButton(-110, 80, '清除紀錄', 'red', () => {
-      gameState.clearSaveData();
-      
-      // 更新首頁顯示
-      this.updatePreviewButterfly();
-      this.drawColorsList();
-      this.drawPatternsList();
-      
-      soundManager.playSwitch();
-
-      // 彈出成功的短小文字提示
-      const successText = this.add.text(0, 165, '已清除所有紀錄！', {
+    // 根據是否可安裝，繪製不同的分類內容
+    if (canInstall) {
+      // === 第一區：安裝遊戲 ===
+      const installTitle = this.add.text(0, -210, '📥 安裝遊戲到裝置', {
         fontFamily: 'Fredoka',
         fontSize: '24px',
         color: '#2e7d32',
-        fontStyle: 'bold',
-        stroke: '#ffffff',
-        strokeThickness: 4
+        fontStyle: 'bold'
       }).setOrigin(0.5);
-      dialogContainer.add(successText);
 
-      this.time.delayedCall(1000, () => {
-        closeModal();
-      });
-    });
+      const installDesc = this.add.text(0, -170, '安裝後可直接從桌面啟動，支援離線遊玩！', {
+        fontFamily: 'Fredoka',
+        fontSize: '20px',
+        color: '#5d4037',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
 
-    // 4. 關閉按鈕 (3D 卡漫風格)
-    const closeBtn = this.createCute3DButton(110, 80, '返回遊戲', 'blue', closeModal);
+      const installBtn = this.createCute3DButton(0, -100, '安裝遊戲', 'green', 240, () => {
+        const promptEvent = window.deferredPrompt;
+        if (!promptEvent) return;
 
-    dialogContainer.add([dialogBox, ribbon, titleText, descText, clearBtn, closeBtn]);
+        // 顯示安裝提示
+        promptEvent.prompt();
+
+        // 等待使用者回應
+        promptEvent.userChoice.then((choiceResult: any) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted PWA installation');
+          } else {
+            console.log('User dismissed PWA installation');
+          }
+          window.deferredPrompt = null;
+          // 關閉並重新建立設定視窗以刷新版面
+          closeModal();
+          this.time.delayedCall(200, () => {
+            this.createSettingsModal(width, height);
+          });
+        });
+      }, 'download');
+
+      // === 第二區：重置遊戲紀錄 ===
+      const resetTitle = this.add.text(0, 0, '⚠️ 重置遊戲紀錄', {
+        fontFamily: 'Fredoka',
+        fontSize: '24px',
+        color: '#c62828',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      const resetDesc = this.add.text(0, 40, '是否清除所有已獲得的翅膀顏色與花紋？', {
+        fontFamily: 'Fredoka',
+        fontSize: '20px',
+        color: '#5d4037',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      const clearBtn = this.createCute3DButton(0, 100, '清除紀錄', 'red', 240, () => {
+        gameState.clearSaveData();
+        this.updatePreviewButterfly();
+        this.drawColorsList();
+        this.drawPatternsList();
+        soundManager.playSwitch();
+
+        const successText = this.add.text(0, 145, '已清除所有紀錄！', {
+          fontFamily: 'Fredoka',
+          fontSize: '24px',
+          color: '#2e7d32',
+          fontStyle: 'bold',
+          stroke: '#ffffff',
+          strokeThickness: 4
+        }).setOrigin(0.5);
+        dialogContainer.add(successText);
+
+        this.time.delayedCall(1000, () => {
+          closeModal();
+        });
+      }, 'trash');
+
+      // === 最下方：返回遊戲按鈕 (與上面兩個分類獨立) ===
+      const closeBtn = this.createCute3DButton(0, 220, '返回遊戲', 'blue', 240, closeModal, 'back');
+
+      dialogContainer.add([
+        dialogBox, ribbon, titleText,
+        installTitle, installDesc, installBtn,
+        resetTitle, resetDesc, clearBtn, closeBtn
+      ]);
+    } else {
+      // === 僅有重置遊戲紀錄 ===
+      const resetDesc = this.add.text(0, -60, '是否要清除所有獲得的顏色與花紋？\n清除後將無法恢復喔！', {
+        fontFamily: 'Fredoka',
+        fontSize: '24px',
+        color: '#4e342e',
+        fontStyle: 'bold',
+        align: 'center',
+        lineSpacing: 10
+      }).setOrigin(0.5);
+
+      const clearBtn = this.createCute3DButton(0, 10, '清除紀錄', 'red', 240, () => {
+        gameState.clearSaveData();
+        this.updatePreviewButterfly();
+        this.drawColorsList();
+        this.drawPatternsList();
+        soundManager.playSwitch();
+
+        const successText = this.add.text(0, 35, '已清除所有紀錄！', {
+          fontFamily: 'Fredoka',
+          fontSize: '24px',
+          color: '#2e7d32',
+          fontStyle: 'bold',
+          stroke: '#ffffff',
+          strokeThickness: 4
+        }).setOrigin(0.5);
+        dialogContainer.add(successText);
+
+        this.time.delayedCall(1000, () => {
+          closeModal();
+        });
+      }, 'trash');
+
+      // === 最下方：返回遊戲按鈕 (與重置分類獨立) ===
+      const closeBtn = this.createCute3DButton(0, 120, '返回遊戲', 'blue', 240, closeModal, 'back');
+
+      dialogContainer.add([dialogBox, ribbon, titleText, resetDesc, clearBtn, closeBtn]);
+    }
+
     modalContainer.add([overlay, dialogContainer]);
 
     // 彈出動畫
@@ -664,18 +777,19 @@ export class HomeScene extends Phaser.Scene {
     x: number, 
     y: number, 
     textStr: string, 
-    theme: 'red' | 'blue', 
-    callback: () => void
+    theme: 'red' | 'blue' | 'green',
+    btnW: number,
+    callback: () => void,
+    iconType?: 'download' | 'trash' | 'back'
   ): Phaser.GameObjects.Container {
-    const btnW = 200;
     const btnH = 65;
     const radius = 18;
     const depthOffset = 6; // 3D 厚度
 
     const btnContainer = this.add.container(x, y);
 
-    const baseColor = theme === 'red' ? 0xb71c1c : 0x0288d1;
-    const faceColor = theme === 'red' ? 0xff5252 : 0x40c4ff;
+    const baseColor = theme === 'red' ? 0xb71c1c : (theme === 'blue' ? 0x0288d1 : 0x1b5e20);
+    const faceColor = theme === 'red' ? 0xff5252 : (theme === 'blue' ? 0x40c4ff : 0x4caf50);
     const strokeColor = 0xffffff;
 
     // 1. 底座 (陰影厚度)
@@ -692,14 +806,123 @@ export class HomeScene extends Phaser.Scene {
     faceGraphic.lineStyle(3.5, strokeColor, 1);
     faceGraphic.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, radius);
 
-    const text = this.add.text(0, 0, textStr, {
+    // 有圖案時文字向右微調，避免與圖示重疊
+    const textX = iconType ? 22 : 0;
+
+    const text = this.add.text(textX, 0, textStr, {
       fontFamily: 'Fredoka',
       fontSize: '24px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    faceContainer.add([faceGraphic, text]);
+    faceContainer.add(faceGraphic);
+
+    // 繪製各類可愛的圖示
+    if (iconType) {
+      const iconGraphic = this.add.graphics();
+      const ix = -50;
+      const iy = -2;
+
+      if (iconType === 'download') {
+        // 繪製白雲底圖
+        iconGraphic.fillStyle(0xffffff, 1);
+        iconGraphic.lineStyle(2, 0x1b5e20, 1);
+        
+        iconGraphic.beginPath();
+        iconGraphic.arc(ix - 8, iy + 4, 7, Math.PI * 0.5, Math.PI * 1.5);
+        iconGraphic.arc(ix, iy - 3, 10, Math.PI * 1.0, Math.PI * 2.0);
+        iconGraphic.arc(ix + 8, iy + 4, 7, Math.PI * 1.5, Math.PI * 0.5);
+        iconGraphic.closePath();
+        iconGraphic.fillPath();
+        iconGraphic.strokePath();
+
+        // 遮蓋底部的圓弧線條
+        iconGraphic.fillRect(ix - 8, iy, 16, 11);
+        iconGraphic.fillStyle(0xffffff, 1);
+        iconGraphic.fillRect(ix - 7, iy - 1, 14, 11);
+        iconGraphic.lineStyle(2, 0x1b5e20, 1);
+        iconGraphic.beginPath();
+        iconGraphic.moveTo(ix - 8, iy + 11);
+        iconGraphic.lineTo(ix + 8, iy + 11);
+        iconGraphic.strokePath();
+
+        // 繪製白雲內部的綠色箭頭
+        iconGraphic.fillStyle(0x4caf50, 1);
+        iconGraphic.lineStyle(1.5, 0x1b5e20, 1);
+        iconGraphic.fillRect(ix - 2.5, iy - 5, 5, 8);
+        iconGraphic.strokeRect(ix - 2.5, iy - 5, 5, 8);
+        iconGraphic.beginPath();
+        iconGraphic.moveTo(ix - 6.5, iy + 2);
+        iconGraphic.lineTo(ix + 6.5, iy + 2);
+        iconGraphic.lineTo(ix, iy + 9);
+        iconGraphic.closePath();
+        iconGraphic.fillPath();
+        iconGraphic.strokePath();
+
+      } else if (iconType === 'trash') {
+        // 繪製垃圾桶 (紅色主題)
+        iconGraphic.fillStyle(0xffffff, 1);
+        iconGraphic.lineStyle(2, baseColor, 1);
+
+        // 蓋子
+        iconGraphic.fillRoundedRect(ix - 10, iy - 12, 20, 4, 2);
+        iconGraphic.strokeRoundedRect(ix - 10, iy - 12, 20, 4, 2);
+        // 蓋子把手
+        iconGraphic.fillRoundedRect(ix - 4, iy - 16, 8, 4, 1);
+        iconGraphic.strokeRoundedRect(ix - 4, iy - 16, 8, 4, 1);
+
+        // 桶身
+        iconGraphic.beginPath();
+        iconGraphic.moveTo(ix - 8, iy - 8);
+        iconGraphic.lineTo(ix + 8, iy - 8);
+        iconGraphic.lineTo(ix + 6, iy + 12);
+        iconGraphic.lineTo(ix - 6, iy + 12);
+        iconGraphic.closePath();
+        iconGraphic.fillPath();
+        iconGraphic.strokePath();
+
+        // 桶身垂直條紋
+        iconGraphic.beginPath();
+        iconGraphic.moveTo(ix - 3, iy - 4);
+        iconGraphic.lineTo(ix - 2, iy + 8);
+        iconGraphic.moveTo(ix, iy - 4);
+        iconGraphic.lineTo(ix, iy + 8);
+        iconGraphic.moveTo(ix + 3, iy - 4);
+        iconGraphic.lineTo(ix + 2, iy + 8);
+        iconGraphic.strokePath();
+
+      } else if (iconType === 'back') {
+        // 繪製可愛的返回箭頭 (藍色主題)
+        iconGraphic.fillStyle(0xffffff, 1);
+        iconGraphic.lineStyle(2, baseColor, 1);
+
+        // 箭頭後端矩形
+        iconGraphic.fillRect(ix - 2, iy - 4, 12, 8);
+        iconGraphic.strokeRect(ix - 2, iy - 4, 12, 8);
+        
+        // 箭頭前端三角形
+        iconGraphic.beginPath();
+        iconGraphic.moveTo(ix - 12, iy);
+        iconGraphic.lineTo(ix - 2, iy - 10);
+        iconGraphic.lineTo(ix - 2, iy + 10);
+        iconGraphic.closePath();
+        iconGraphic.fillPath();
+        iconGraphic.strokePath();
+
+        // 遮蓋接縫
+        iconGraphic.fillStyle(0xffffff, 1);
+        iconGraphic.fillRect(ix - 2, iy - 3, 2, 6);
+      }
+
+      faceContainer.add(iconGraphic);
+      
+      // 綁定資料供 hover 動效存取
+      btnContainer.setData('icon', iconGraphic);
+      btnContainer.setData('iconType', iconType);
+    }
+
+    faceContainer.add(text);
 
     // 3. 熱區 hitbox
     const hitbox = this.add.rectangle(0, depthOffset / 2, btnW, btnH + depthOffset, 0x000000, 0)
@@ -707,7 +930,7 @@ export class HomeScene extends Phaser.Scene {
 
     btnContainer.add([baseGraphic, faceContainer, hitbox]);
 
-    // 物理下壓動效
+    // 下壓與圖示躍動特效
     hitbox.on('pointerover', () => {
       this.tweens.add({
         targets: faceContainer,
@@ -715,6 +938,40 @@ export class HomeScene extends Phaser.Scene {
         duration: 80,
         ease: 'Power1.easeOut'
       });
+      const icon = btnContainer.getData('icon') as Phaser.GameObjects.Graphics;
+      const type = btnContainer.getData('iconType') as string;
+      if (icon) {
+        if (type === 'download') {
+          this.tweens.add({
+            targets: icon,
+            y: 3,
+            duration: 200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        } else if (type === 'trash') {
+          // 垃圾桶左右搖晃動效
+          this.tweens.add({
+            targets: icon,
+            angle: { from: -8, to: 8 },
+            duration: 100,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Linear'
+          });
+        } else if (type === 'back') {
+          // 返回箭頭左右跳動動效
+          this.tweens.add({
+            targets: icon,
+            x: icon.x - 4,
+            duration: 150,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      }
     });
 
     hitbox.on('pointerout', () => {
@@ -724,6 +981,13 @@ export class HomeScene extends Phaser.Scene {
         duration: 80,
         ease: 'Power1.easeOut'
       });
+      const icon = btnContainer.getData('icon') as Phaser.GameObjects.Graphics;
+      if (icon) {
+        this.tweens.killTweensOf(icon);
+        icon.y = 0;
+        icon.x = 0;
+        icon.angle = 0;
+      }
     });
 
     hitbox.on('pointerdown', () => {
