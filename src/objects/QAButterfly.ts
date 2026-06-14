@@ -57,7 +57,7 @@ export class QAButterfly extends Phaser.GameObjects.Container {
     // Flapping
     this.wingTween = scene.tweens.add({
       targets: this.wingsSprite,
-      scaleY: 0.3,
+      scaleX: 0.3,
       duration: 150,
       yoyo: true,
       repeat: -1,

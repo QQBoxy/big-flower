@@ -17,9 +17,18 @@ export class GameScene extends Phaser.Scene {
   private clouds: Phaser.GameObjects.Image[] = [];
   private thunderTimer?: Phaser.Time.TimerEvent;
   private isDialogActive: boolean = false;
+  private levelMode: 'addition' | 'subtraction' | 'additionTen' | 'subtractionTen' = 'addition';
 
   constructor() {
     super('GameScene');
+  }
+
+  init(data?: { mode: 'addition' | 'subtraction' | 'additionTen' | 'subtractionTen' }) {
+    if (data && data.mode) {
+      this.levelMode = data.mode;
+    } else {
+      this.levelMode = 'addition';
+    }
   }
 
   create() {
@@ -182,7 +191,7 @@ export class GameScene extends Phaser.Scene {
 
     // Launch Dialog Scene with reward data
     this.scene.pause();
-    this.scene.launch('DialogScene', { rewardType: qa.rewardType, rewardValue: qa.rewardValue });
+    this.scene.launch('DialogScene', { rewardType: qa.rewardType, rewardValue: qa.rewardValue, mode: this.levelMode });
   }
 
   private onResume(_scene: Phaser.Scene, data?: { isCorrect: boolean }) {

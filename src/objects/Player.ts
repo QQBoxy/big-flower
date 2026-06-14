@@ -34,7 +34,7 @@ export class Player extends Phaser.GameObjects.Container {
     // Flapping animation
     this.wingTween = scene.tweens.add({
       targets: this.wingsSprite,
-      scaleY: 0.2,
+      scaleX: 0.2,
       duration: 120,
       yoyo: true,
       repeat: -1,
