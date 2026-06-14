@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dbf3ff"/>
+      <stop offset="100%" stop-color="#aae0fa"/>
+    </linearGradient>
+    <!-- Shadow for Depth -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#1e3d59" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Background Circle (Maskable PWA Safe Area is inside central 60% circle) -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)"/>
+
+  <!-- Big Flower -->
+  <g filter="url(#shadow)" transform="translate(256, 256)">
+    <!-- Petals -->
+    <!-- Petal 1: Top (Red/Pink) -->
+    <circle cx="0" cy="-100" r="70" fill="#ff7675"/>
+    <!-- Petal 2: Top Right (Orange) -->
+    <circle cx="86.6" cy="-50" r="70" fill="#ff9f43"/>
+    <!-- Petal 3: Bottom Right (Yellow) -->
+    <circle cx="86.6" cy="50" r="70" fill="#feca57"/>
+    <!-- Petal 4: Bottom (Green) -->
+    <circle cx="0" cy="100" r="70" fill="#1dd1a1"/>
+    <!-- Petal 5: Bottom Left (Blue) -->
+    <circle cx="-86.6" cy="50" r="70" fill="#48dbfb"/>
+    <!-- Petal 6: Top Left (Purple) -->
+    <circle cx="-86.6" cy="-50" r="70" fill="#9b5de5"/>
+
+    <!-- Flower Center (Yellow) -->
+    <circle cx="0" cy="0" r="80" fill="#ffeaa7"/>
+    
+    <!-- Smile Face -->
+    <!-- Eyes -->
+    <circle cx="-25" cy="-12" r="8" fill="#2d3436"/>
+    <circle cx="25" cy="-12" r="8" fill="#2d3436"/>
+    <circle cx="-28" cy="-15" r="3" fill="#ffffff"/>
+    <circle cx="22" cy="-15" r="3" fill="#ffffff"/>
+    <!-- Cheeks (Blushing pink) -->
+    <circle cx="-38" cy="8" r="10" fill="#ff7675" opacity="0.6"/>
+    <circle cx="38" cy="8" r="10" fill="#ff7675" opacity="0.6"/>
+    <!-- Mouth -->
+    <path d="M -20,10 Q 0,32 20,10" stroke="#2d3436" stroke-width="8" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
