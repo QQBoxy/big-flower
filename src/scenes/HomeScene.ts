@@ -4,8 +4,6 @@ import {
   soundManager,
   drawWingPattern,
   drawCardPattern,
-  GAME_COLORS,
-  GAME_PATTERNS,
 } from "../utils/MathUtils";
 
 export class HomeScene extends Phaser.Scene {
