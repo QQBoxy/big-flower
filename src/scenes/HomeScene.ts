@@ -215,6 +215,9 @@ export class HomeScene extends Phaser.Scene {
       this.isDraggingColors = false;
       this.isDraggingPatterns = false;
     });
+
+    // 7. Setup Settings Button
+    this.createSettingsButton(width, height);
   }
 
   private createPreviewButterfly(x: number, y: number) {
@@ -473,5 +476,277 @@ export class HomeScene extends Phaser.Scene {
       card.add([cardBg, preview, hitbox]);
       this.patternsContainer.add(card);
     });
+  }
+
+  private createSettingsButton(width: number, height: number) {
+    const btnSize = 64;
+    const x = width - 60;
+    const y = 60;
+
+    const btnContainer = this.add.container(x, y);
+
+    // Button Background
+    const bg = this.add.graphics();
+    bg.fillStyle(0xffffff, 0.95);
+    bg.fillCircle(0, 0, btnSize / 2);
+    bg.lineStyle(4, 0xff80ab, 1);
+    bg.strokeCircle(0, 0, btnSize / 2);
+
+    // Cute Custom Vector Gear Icon
+    const gear = this.add.graphics();
+    const strokeColor = 0xff4081; // 亮粉紅外框
+    const fillColor = 0xffd54f;   // 溫暖黃色本體
+    
+    // 1. 畫 8 個突出的齒
+    gear.fillStyle(fillColor, 1);
+    gear.lineStyle(3, strokeColor, 1);
+    const teethCount = 8;
+    const outerRadius = 15;
+    const toothRadius = 4.5;
+    for (let i = 0; i < teethCount; i++) {
+      const angle = (i * Math.PI * 2) / teethCount;
+      const tx = Math.cos(angle) * outerRadius;
+      const ty = Math.sin(angle) * outerRadius;
+      gear.fillCircle(tx, ty, toothRadius);
+      gear.strokeCircle(tx, ty, toothRadius);
+    }
+
+    // 2. 畫主體圓，蓋掉突出齒的內半部
+    gear.fillCircle(0, 0, outerRadius);
+    gear.strokeCircle(0, 0, outerRadius);
+
+    // 3. 畫中心的孔
+    gear.fillStyle(strokeColor, 1);
+    gear.fillCircle(0, 0, 5);
+
+    // Interactive hitbox
+    const hitbox = this.add.circle(0, 0, btnSize / 2, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+
+    btnContainer.add([bg, gear, hitbox]);
+
+    hitbox.on('pointerover', () => {
+      this.tweens.add({
+        targets: btnContainer,
+        scale: 1.15,
+        duration: 100
+      });
+      // Cute rotation effect on hover
+      this.tweens.add({
+        targets: gear,
+        angle: 45,
+        duration: 200,
+        ease: 'Power1.easeOut'
+      });
+    });
+
+    hitbox.on('pointerout', () => {
+      this.tweens.add({
+        targets: btnContainer,
+        scale: 1.0,
+        duration: 100
+      });
+      this.tweens.add({
+        targets: gear,
+        angle: 0,
+        duration: 200,
+        ease: 'Power1.easeOut'
+      });
+    });
+
+    hitbox.on('pointerdown', () => {
+      soundManager.playClick();
+      this.createSettingsModal(width, height);
+    });
+  }
+
+  private createSettingsModal(width: number, height: number) {
+    // 建立一個覆蓋全螢幕的 Container，用於呈現半透明遮罩與彈窗
+    const modalContainer = this.add.container(0, 0).setDepth(100);
+
+    // 1. 半透明遮罩，阻擋下方的互動
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.4)
+      .setOrigin(0, 0)
+      .setInteractive();
+
+    // 2. 彈窗 Container 放在畫面正中央，並實作彈出動畫
+    const dialogContainer = this.add.container(width / 2, height / 2);
+
+    const dialogW = 540;
+    const dialogH = 450;
+
+    // 關閉邏輯動畫 (先宣告以供按鈕 callback 使用)
+    const closeModal = () => {
+      this.tweens.add({
+        targets: dialogContainer,
+        scale: 0,
+        duration: 250,
+        ease: 'Back.easeIn',
+        onComplete: () => {
+          modalContainer.destroy();
+        }
+      });
+    };
+
+    // 彈窗背景
+    const dialogBox = this.add.graphics();
+    dialogBox.fillStyle(0xffffff, 1);
+    dialogBox.fillRoundedRect(-dialogW / 2, -dialogH / 2, dialogW, dialogH, 32);
+    dialogBox.lineStyle(6, 0xff80ab, 1);
+    dialogBox.strokeRoundedRect(-dialogW / 2, -dialogH / 2, dialogW, dialogH, 32);
+
+    // 標題 Ribbon
+    const ribbon = this.add.graphics();
+    ribbon.fillStyle(0xff4081, 1);
+    ribbon.fillRoundedRect(-dialogW / 2 + 40, -dialogH / 2 - 25, dialogW - 80, 50, 16);
+
+    const titleText = this.add.text(0, -dialogH / 2, '遊戲設定', {
+      fontFamily: 'Fredoka',
+      fontSize: '28px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    // 提示說明文字
+    const descText = this.add.text(0, -50, '是否要清除所有獲得的顏色與花紋？\n清除後將無法恢復喔！', {
+      fontFamily: 'Fredoka',
+      fontSize: '24px',
+      color: '#4e342e',
+      fontStyle: 'bold',
+      align: 'center',
+      lineSpacing: 10
+    }).setOrigin(0.5);
+
+    // 3. 清除按鈕 (3D 卡漫風格)
+    const clearBtn = this.createCute3DButton(-110, 80, '清除紀錄', 'red', () => {
+      gameState.clearSaveData();
+      
+      // 更新首頁顯示
+      this.updatePreviewButterfly();
+      this.drawColorsList();
+      this.drawPatternsList();
+      
+      soundManager.playSwitch();
+
+      // 彈出成功的短小文字提示
+      const successText = this.add.text(0, 165, '已清除所有紀錄！', {
+        fontFamily: 'Fredoka',
+        fontSize: '24px',
+        color: '#2e7d32',
+        fontStyle: 'bold',
+        stroke: '#ffffff',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      dialogContainer.add(successText);
+
+      this.time.delayedCall(1000, () => {
+        closeModal();
+      });
+    });
+
+    // 4. 關閉按鈕 (3D 卡漫風格)
+    const closeBtn = this.createCute3DButton(110, 80, '返回遊戲', 'blue', closeModal);
+
+    dialogContainer.add([dialogBox, ribbon, titleText, descText, clearBtn, closeBtn]);
+    modalContainer.add([overlay, dialogContainer]);
+
+    // 彈出動畫
+    dialogContainer.setScale(0);
+    this.tweens.add({
+      targets: dialogContainer,
+      scale: 1,
+      duration: 350,
+      ease: 'Back.easeOut'
+    });
+  }
+
+  private createCute3DButton(
+    x: number, 
+    y: number, 
+    textStr: string, 
+    theme: 'red' | 'blue', 
+    callback: () => void
+  ): Phaser.GameObjects.Container {
+    const btnW = 200;
+    const btnH = 65;
+    const radius = 18;
+    const depthOffset = 6; // 3D 厚度
+
+    const btnContainer = this.add.container(x, y);
+
+    const baseColor = theme === 'red' ? 0xb71c1c : 0x0288d1;
+    const faceColor = theme === 'red' ? 0xff5252 : 0x40c4ff;
+    const strokeColor = 0xffffff;
+
+    // 1. 底座 (陰影厚度)
+    const baseGraphic = this.add.graphics();
+    baseGraphic.fillStyle(baseColor, 1);
+    baseGraphic.fillRoundedRect(-btnW / 2, -btnH / 2 + depthOffset, btnW, btnH, radius);
+
+    // 2. 按鈕表面
+    const faceContainer = this.add.container(0, 0);
+
+    const faceGraphic = this.add.graphics();
+    faceGraphic.fillStyle(faceColor, 1);
+    faceGraphic.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, radius);
+    faceGraphic.lineStyle(3.5, strokeColor, 1);
+    faceGraphic.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, radius);
+
+    const text = this.add.text(0, 0, textStr, {
+      fontFamily: 'Fredoka',
+      fontSize: '24px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    faceContainer.add([faceGraphic, text]);
+
+    // 3. 熱區 hitbox
+    const hitbox = this.add.rectangle(0, depthOffset / 2, btnW, btnH + depthOffset, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+
+    btnContainer.add([baseGraphic, faceContainer, hitbox]);
+
+    // 物理下壓動效
+    hitbox.on('pointerover', () => {
+      this.tweens.add({
+        targets: faceContainer,
+        y: 2,
+        duration: 80,
+        ease: 'Power1.easeOut'
+      });
+    });
+
+    hitbox.on('pointerout', () => {
+      this.tweens.add({
+        targets: faceContainer,
+        y: 0,
+        duration: 80,
+        ease: 'Power1.easeOut'
+      });
+    });
+
+    hitbox.on('pointerdown', () => {
+      this.tweens.add({
+        targets: faceContainer,
+        y: depthOffset,
+        duration: 50,
+        ease: 'Power1.easeOut'
+      });
+    });
+
+    hitbox.on('pointerup', () => {
+      this.tweens.add({
+        targets: faceContainer,
+        y: 0,
+        duration: 100,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          callback();
+        }
+      });
+    });
+
+    return btnContainer;
   }
 }
