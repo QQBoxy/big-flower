@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { generateAdditionProblem, MathProblem, soundManager } from '../utils/MathUtils';
+import { generateMathProblem, MathProblem, soundManager } from '../utils/MathUtils';
 import { gameState } from '../state/GameState';
 export class DialogScene extends Phaser.Scene {
   private rewardType!: 'color' | 'pattern';
   private rewardValue!: number | string;
+  private mode!: 'addition' | 'subtraction' | 'additionTen' | 'subtractionTen';
   private problem!: MathProblem;
   private dialogContainer!: Phaser.GameObjects.Container;
 
@@ -11,13 +12,14 @@ export class DialogScene extends Phaser.Scene {
     super('DialogScene');
   }
 
-  init(data: { rewardType: 'color' | 'pattern', rewardValue: number | string }) {
+  init(data: { rewardType: 'color' | 'pattern', rewardValue: number | string, mode: 'addition' | 'subtraction' | 'additionTen' | 'subtractionTen' }) {
     this.rewardType = data.rewardType;
     this.rewardValue = data.rewardValue;
+    this.mode = data.mode;
   }
 
   create() {
-    this.problem = generateAdditionProblem();
+    this.problem = generateMathProblem(this.mode);
     
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
@@ -51,7 +53,7 @@ export class DialogScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Question Text
-    const qText = this.add.text(0, -dialogH * 0.22, `${this.problem.num1} + ${this.problem.num2} = ?`, {
+    const qText = this.add.text(0, -dialogH * 0.22, `${this.problem.num1} ${this.problem.operator} ${this.problem.num2} = ?`, {
       fontFamily: 'Fredoka',
       fontSize: '76px',
       color: '#2c3e50',

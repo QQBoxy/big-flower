@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 export interface MathProblem {
   num1: number;
   num2: number;
+  operator: '+' | '-';
   correctAnswer: number;
   options: number[];
 }
@@ -549,19 +550,57 @@ export function drawCardPattern(
   }
 }
 
-// 產生隨機加法問題
-export function generateAdditionProblem(): MathProblem {
-  const sum = Math.floor(Math.random() * 9) + 2; // 2 to 10
-  const num1 = Math.floor(Math.random() * (sum - 1)) + 1; // 1 to sum - 1
-  const num2 = sum - num1;
-  
-  const correctAnswer = sum;
+// 產生隨機加減法問題
+export function generateMathProblem(mode: 'addition' | 'subtraction' | 'additionTen' | 'subtractionTen'): MathProblem {
+  let num1: number;
+  let num2: number;
+  let operator: '+' | '-';
+  let correctAnswer: number;
+
+  const isTenDigit = mode === 'additionTen' || mode === 'subtractionTen';
+
+  if (mode === 'addition') {
+    operator = '+';
+    const sum = Math.floor(Math.random() * 9) + 2; // 2 to 10
+    num1 = Math.floor(Math.random() * (sum - 1)) + 1; // 1 to sum - 1
+    num2 = sum - num1;
+    correctAnswer = sum;
+  } else if (mode === 'subtraction') {
+    operator = '-';
+    num1 = Math.floor(Math.random() * 9) + 2; // 2 to 10
+    num2 = Math.floor(Math.random() * num1) + 1; // 1 to num1
+    correctAnswer = num1 - num2;
+  } else if (mode === 'additionTen') {
+    operator = '+';
+    // num1 in [10, 89], num2 in [10, 99 - num1], so sum in [20, 99]
+    num1 = Math.floor(Math.random() * 80) + 10;
+    const maxNum2 = 99 - num1;
+    num2 = Math.floor(Math.random() * (maxNum2 - 10 + 1)) + 10;
+    correctAnswer = num1 + num2;
+  } else { // subtractionTen
+    operator = '-';
+    // num1 in [20, 99], num2 in [10, num1 - 10], so answer in [10, 89]
+    num1 = Math.floor(Math.random() * 80) + 20;
+    const maxNum2 = num1 - 10;
+    num2 = Math.floor(Math.random() * (maxNum2 - 10 + 1)) + 10;
+    correctAnswer = num1 - num2;
+  }
   
   const options = new Set<number>();
   options.add(correctAnswer);
   
   while (options.size < 3) {
-    const wrongAnswer = Math.floor(Math.random() * 11);
+    let wrongAnswer: number;
+    if (isTenDigit) {
+      // 兩位數干擾項：在 [correctAnswer - 15, correctAnswer + 15] 之間，且在 [10, 99] 內
+      const delta = Math.floor(Math.random() * 31) - 15; // -15 to 15
+      wrongAnswer = correctAnswer + delta;
+      if (wrongAnswer < 10) wrongAnswer = 10 + Math.floor(Math.random() * 10);
+      if (wrongAnswer > 99) wrongAnswer = 90 + Math.floor(Math.random() * 10);
+    } else {
+      wrongAnswer = Math.floor(Math.random() * 11);
+    }
+    
     if (wrongAnswer !== correctAnswer) {
       options.add(wrongAnswer);
     }
@@ -576,6 +615,7 @@ export function generateAdditionProblem(): MathProblem {
   return {
     num1,
     num2,
+    operator,
     correctAnswer,
     options: shuffledOptions
   };
@@ -663,7 +703,7 @@ class SoundManager {
         osc.frequency.setValueAtTime(noteFreq, time);
         
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.005, time + 0.02);
+        gain.gain.linearRampToValueAtTime(0.02, time + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.20);
         
         osc.connect(gain);
@@ -680,7 +720,7 @@ class SoundManager {
         osc.frequency.setValueAtTime(bassFreq, time);
         
         gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.006, time + 0.03);
+        gain.gain.linearRampToValueAtTime(0.024, time + 0.03);
         gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
         
         osc.connect(gain);
