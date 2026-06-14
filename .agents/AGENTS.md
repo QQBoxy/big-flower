@@ -20,65 +20,79 @@
   * 背景（巨大的彩色花朵）向左捲動，營造向右飛行的視覺效果。
 * **操控方式**：
   * 支援鍵盤（上下方向鍵）控制主角。
-  * 支援手機觸控：點擊畫面上半部往上飛，點擊畫面下半部往下飛。
+  * 支援手機觸控：點選位置若在蝴蝶目前高度以上則往上飛，在蝴蝶高度以下則往下飛。在與蝴蝶中心高度相差 15 像素以內時則停止垂直移動，防止在手指觸控處產生高頻上下抖動。
 * **生成與碰撞機制**：
-  * 畫面右側隨機高度生成帶有不同顏色與花紋的問答蝴蝶（QAButterfly），並向左飛行。
+  * 畫面右側隨機高度生成問答蝴蝶（QAButterfly），並向左飛行。飛行外觀完全隨機混搭，且頭頂無類型標籤以保留盲盒驚喜感。
   * 當主角與問答蝴蝶碰撞時，暫停 `GameScene` 物理引擎與背景滾動，並以 `launch` 方式疊加彈出 `DialogScene`。
 * **答題邏輯（在 DialogScene 實作）**：
   * 隨機出題：10 以內的加法（例如 `3 + 4 = ?`），並提供三個按鈕選項。
-  * **答對**：獲得該問答蝴蝶的外觀皮膚，若愛心未滿 5 顆則恢復 1 顆，播放成功音效與彩色紙屑粒子效果，1.5 秒後關閉彈窗並恢復遊戲。
-  * **答錯**：扣除 1 顆心，畫面震動並播放失敗音效，1.5 秒後關閉彈窗並恢復遊戲。
+  * **答對**：獲得該問答蝴蝶代表的獎勵（優先從玩家尚未解鎖的顏色或花紋中挑選解鎖），若愛心未滿 5 顆則恢復 1 顆，播放成功音效與彩色紙屑粒子效果，1.8 秒後關閉彈窗並恢復遊戲。
+  * **答錯**：扣除 1 顆心，畫面震動並播放失敗音效，1.8 秒後關閉彈窗並恢復遊戲。
+  * **不論對錯**：皆會增加關卡解答進度 1。
 * **結束條件**：
-  * 當愛心歸零，或累積碰觸並解答 10 隻蝴蝶時，畫面淡出並切換回 `HomeScene`。
+  * 當愛心歸零，或累積解答（含答對/答錯）10 隻蝴蝶時，畫面淡出並切換回 `HomeScene`。
 
 ---
 
 ## 3. 系統狀態與數據結構 (`GameState`)
-全域管理遊戲狀態，確保重玩時能重置數據但保留收集到的外觀。
+全域管理遊戲狀態，確保重玩時能重置數據但保留收集到的外觀。採用「獨立解鎖與自由混搭機制」。
 
 ```typescript
-export interface Skin {
-  id: string;      // 格式: skin_${color}_${pattern}，用於去重
-  color: number;   // 16 進位顏色代碼，例如 0xffb6c1
-  pattern: string; // 'none' | 'dots' | 'stripes'
-}
-
 export interface GameStateData {
-  hearts: number;           // 當前愛心 (0 ~ 5)
-  maxHearts: number;        // 最大愛心 (預設 5)
-  progress: number;         // 當前答題次數 (0 ~ 10)
-  targetProgress: number;   // 目標次數 (預設 10)
-  collectedSkins: Skin[];   // 已收集的皮膚清單
-  currentSkin: Skin;        // 主角目前使用的皮膚
+  hearts: number;             // 當前愛心 (0 ~ 5)
+  maxHearts: number;          // 最大愛心 (預設 5)
+  progress: number;           // 當前答題次數 (0 ~ 10)
+  targetProgress: number;     // 目標次數 (預設 10)
+  collectedColors: number[];  // 已解鎖顏色清單
+  collectedPatterns: string[];// 已解鎖花紋清單
+  currentColor: number;       // 主角目前使用的顏色
+  currentPattern: string;     // 主角目前使用的花紋
 }
 ```
 
 ---
 
-## 4. 場景架構與職責 (Phaser Scenes)
+## 4. 裝扮規格定義
+
+### 4.1 翅膀顏色 (34 種)
+* 預設提供 32 種繽紛、明亮的馬卡龍與粉嫩色系，並包含專屬的**酷炫黑** (`0x1a1a1a`) 與**經典咖啡色** (`0x795548`)，供玩家豐富混搭。
+
+### 4.2 花紋樣式 (32 種)
+* 提供 32 種圖案樣式，破除單一排版，並依形狀分為三大類排版：
+  1. **分散多點型**：`dots` (圓點), `heart` (愛心), `star` (星星), `triangle` (三角形), `diamond` (菱形), `semi` (半圓), `cross` (十字), `xmark` (X形), `ring` (圓環), `square` (正方形), `droplet` (水滴), `leaf` (樹葉), `club` (梅花), `spade` (黑桃)。於翅膀對稱呈三點分布。
+  2. **單一置中型**：`moon` (彎月), `hexagon` (六角形), `spiral` (螺旋), `clover` (三葉草), `flower` (小花), `crown` (皇冠), `cloud` (雲朵), `lightning` (閃電), `paw` (貓爪), `fish` (魚兒), `apple` (蘋果), `butterfly_mini` (小蝴蝶), `shield` (盾牌)。於左右翅膀中心渲染單一精緻的大圖案。
+  3. **線條波浪型**：`stripes` (斜條紋), `wave` (波浪線), `zigzag` (鋸齒線), `tracks` (雙軌線)。橫跨翅膀。
+
+---
+
+## 5. 場景架構與職責 (Phaser Scenes)
 
 | 場景類別 | 職責說明 |
 | :--- | :--- |
 | **BootScene** | 遊戲初始引導，隨即切換至 PreloadScene。 |
 | **PreloadScene** | 負責加載所有必要的靜態資源（Web Font 字型宣告、Web Audio 音效初始化、基本粒子圖案等）。 |
-| **HomeScene** | 溫暖的家。展示收集到的顏色與花紋、點擊更換主角外觀、提供「開始遊戲」按鈕（重置狀態並切換至 GameScene）。 |
-| **GameScene** | 遊戲核心。負責背景花朵滾動、天氣粒子特效（晴天、陰天、下雨）、生成問答蝴蝶、碰撞處理。 |
-| **UIScene** | 疊加在 GameScene 之上，顯示目前的愛心數量（Graphic 繪製或 Emoji）與關卡進度字樣。 |
-| **DialogScene** | 答題彈窗。暫停 GameScene 並疊加顯示，處理加法題目、三個答案按鈕與答題對錯的動態回饋。 |
+| **HomeScene** | 溫暖的家。展示收集到的顏色與花紋、提供可左右拖曳滑動的裝扮卡片清單、點擊更換主角外觀、提供「開始遊戲」按鈕。 |
+| **GameScene** | 遊戲核心。負責背景花朵滾動、天氣粒子特效（晴天、陰天、下雨）、生成問答蝴蝶（優先抽取未收集獎勵）、碰撞處理。 |
+| **UIScene** | 疊加在 GameScene 之上，顯示目前的愛心數量與關卡進度字樣。 |
+| **DialogScene** | 答題彈窗。暫停 GameScene 並疊加顯示，處理加法題目、三個答案按鈕與答題對錯的動態回饋，累計解答進度。 |
 
 ---
 
-## 5. 核心 Bug 修復與優化準則 (必須遵守)
+## 6. 核心設計與優化準則 (必須遵守)
 
 1. **問答蝴蝶速度重置 Bug**：
-   在 `GameScene` 中將 `QAButterfly` 加入物理群組 `qaGroup` 後，必須**重新調用** `(qa.body as Phaser.Physics.Arcade.Body).setVelocityX(-200)`，否則蝴蝶會靜止在原地。
+   在 `GameScene` 中將 `QAButterfly` 加入物理群組 `qaGroup` 後，必須**重新調用** `(qa.body as Phaser.Physics.Arcade.Body).setVelocityX(-220)`，否則蝴蝶會靜止在原地。
 2. **多重碰撞防範**：
    在 `GameScene` 內建 `private isDialogActive: boolean` 狀態。在碰撞發生時，若該旗標為 `true` 則直接忽略，防止同一個 tick 觸發多次碰撞導致彈窗多重疊加。
-3. **皮膚去重機制**：
-   皮膚的唯一 ID 必須是 `skin_${color}_${pattern}`，拿掉時間戳記。在 `GameState.addSkin` 中依此 ID 去重，防止相同的皮膚重複顯示在 `HomeScene` 的收集列表。
-4. **手機操控衝突防範**：
-   為避免 DialogScene 中點擊選項的 `pointer.isDown` 被 GameScene 錯誤繼承，在 GameScene 恢復運作前，確保 pointer 的輸入狀態已被重置，或在對話框關閉的 1.5 秒延遲中阻斷輸入。
-5. **兒童化 UI & 動效 (WOW 元素)**：
+3. **解鎖優先與去重機制**：
+   在 `GameScene` 中生成問答蝴蝶獎勵時，程式會**優先從玩家尚未解鎖的項目中挑選**。玩家答對時直接寫入解鎖清單去重，保證每次答對都有實質的新解鎖驚喜。
+4. **首頁滑動防誤觸衝突防範**：
+   * 首頁的卡片清單支援**左右水平拖曳滑動**（Drag Scroll），滾動範圍會自動在合理邊距內。
+   * 實作滑動防誤觸：點擊卡片時，只有當手勢移動距離 **小於 8 像素** 時判定為「點選換裝」，若大於 8 像素則單純判定為「滑動卡片清單」，確保兩者不誤觸。
+5. **繪製共用封裝**：
+   * 所有 32 種花紋繪製統一由 `MathUtils.ts` 導出的 `drawWingPattern` 與 `drawCardPattern` 完成，確保在遊戲中（Player / QAButterfly / Preview / Card）繪製的圖形比例和質感完全一致。
+   * 花紋卡片無文字，其縮圖背景底色會即時連動 `currentColor`。
+6. **兒童化 UI & 動效 (WOW 元素)**：
    * **字型**：全套採用 Google Font `Fredoka`。
    * **特效**：答對時使用 `Phaser.GameObjects.Particles` 製作彩色紙屑噴灑效果；答錯時使用相機震動或彈窗抖動效果。
    * **音效**：使用內建 `AudioContext` 程式合成 8-bit 可愛音效，避免外部資源載入失敗。

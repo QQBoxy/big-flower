@@ -123,9 +123,11 @@ export class Player extends Phaser.GameObjects.Container {
     } else if (cursors && cursors.down && cursors.down.isDown) {
       body.setVelocityY(speed);
     } else if (pointer && pointer.isDown) {
-      // Touch screen: upper half -> up, lower half -> down
-      // Respect our FIT scaling, pointer coordinate is automatically mapped
-      if (pointer.y < this.scene.scale.height / 2) {
+      // Touch screen: move towards touch position relative to the butterfly
+      // Add a dead zone of 15 pixels to prevent high-frequency jittering
+      if (Math.abs(pointer.y - this.y) < 15) {
+        body.setVelocityY(0);
+      } else if (pointer.y < this.y) {
         body.setVelocityY(-speed);
       } else {
         body.setVelocityY(speed);
