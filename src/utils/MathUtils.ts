@@ -583,6 +583,32 @@ export function generateAdditionProblem(): MathProblem {
 
 class SoundManager {
   private ctx: AudioContext | null = null;
+  private isBgmPlaying = false;
+  private bgmIntervalId: any = null;
+  private bgmIndex = 0;
+
+  // BPM = 120 (every 250ms triggers a step)
+  private bgmNotes: number[] = [
+    659.25, 783.99, 1046.50, 783.99, // E5, G5, C6, G5
+    880.00, 1046.50, 783.99, 0,      // A5, C6, G5, rest
+    698.46, 880.00, 1046.50, 880.00, // F5, A5, C6, A5
+    783.99, 659.25, 587.33, 0,       // G5, E5, D5, rest
+    659.25, 783.99, 1046.50, 783.99, // E5, G5, C6, G5
+    880.00, 1046.50, 1174.66, 1318.51,// A5, C6, D6, E6
+    1046.50, 880.00, 783.99, 659.25, // C6, A5, G5, E5
+    587.33, 783.99, 523.25, 0        // D5, G5, C5, rest
+  ];
+
+  private bgmBass: number[] = [
+    261.63, 0, 196.00, 0, // C4, G3
+    261.63, 0, 196.00, 0, // C4, G3
+    174.61, 0, 261.63, 0, // F3, C4
+    196.00, 0, 293.66, 0, // G3, D4
+    261.63, 0, 196.00, 0, // C4, G3
+    220.00, 0, 329.63, 0, // A3, E4
+    174.61, 0, 196.00, 0, // F3, G3
+    261.63, 0, 130.81, 0  // C4, C3
+  ];
 
   private initCtx() {
     if (!this.ctx) {
@@ -590,6 +616,82 @@ class SoundManager {
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
+    }
+    if (!this.isBgmPlaying) {
+      this.startBGM();
+    }
+  }
+
+  public startBGM() {
+    if (this.isBgmPlaying) return;
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    
+    this.isBgmPlaying = true;
+    this.bgmIndex = 0;
+    
+    this.bgmIntervalId = setInterval(() => {
+      this.playBgmStep();
+    }, 250);
+  }
+
+  public stopBGM() {
+    if (this.bgmIntervalId) {
+      clearInterval(this.bgmIntervalId);
+      this.bgmIntervalId = null;
+    }
+    this.isBgmPlaying = false;
+  }
+
+  private playBgmStep() {
+    try {
+      if (!this.ctx || this.ctx.state === 'suspended') return;
+
+      const time = this.ctx.currentTime;
+      const noteFreq = this.bgmNotes[this.bgmIndex];
+      const bassFreq = this.bgmBass[this.bgmIndex];
+
+      // 1. Main Melody (triangle wave for soft glockenspiel-like tone)
+      if (noteFreq > 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(noteFreq, time);
+        
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.005, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.20);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.20);
+      }
+
+      // 2. Bass Accompaniment (sine wave for warm underlying pad-like bass)
+      if (bassFreq > 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(bassFreq, time);
+        
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.006, time + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.22);
+      }
+
+      this.bgmIndex = (this.bgmIndex + 1) % 32;
+    } catch (e) {
+      console.warn("BGM play step error:", e);
     }
   }
 

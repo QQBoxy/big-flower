@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Player } from '../objects/Player';
 import { QAButterfly } from '../objects/QAButterfly';
 import { gameState } from '../state/GameState';
-import { GAME_COLORS, GAME_PATTERNS } from '../utils/MathUtils';
+import { GAME_COLORS, GAME_PATTERNS, soundManager } from '../utils/MathUtils';
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -11,8 +11,11 @@ export class GameScene extends Phaser.Scene {
   private spawnTimer!: Phaser.Time.TimerEvent;
   private backgrounds!: Phaser.GameObjects.Graphics[];
   private bgSpeed = 120;
-  private weatherCondition!: 'sunny' | 'cloudy' | 'rainy';
+  private weatherCondition!: 'sunny' | 'cloudy' | 'rainy' | 'thunder';
   private rainEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
+  private sunGraphics?: Phaser.GameObjects.Graphics;
+  private clouds: Phaser.GameObjects.Image[] = [];
+  private thunderTimer?: Phaser.Time.TimerEvent;
   private isDialogActive: boolean = false;
 
   constructor() {
@@ -22,15 +25,11 @@ export class GameScene extends Phaser.Scene {
   create() {
     this.isDialogActive = false;
 
-    // Determine weather
+    // Determine initial weather (thunder only happens when answering wrong)
     const weathers: ('sunny' | 'cloudy' | 'rainy')[] = ['sunny', 'cloudy', 'rainy'];
-    this.weatherCondition = weathers[Math.floor(Math.random() * weathers.length)];
-    
-    // Aesthetic pastel colors for weather
-    const bgColor = this.weatherCondition === 'sunny' ? 0x81d4fa : // Vivid soft sky blue
-                    this.weatherCondition === 'cloudy' ? 0x90a4ae : // Light grey blue
-                    0x546e7a; // Deep slate rain sky
-    this.cameras.main.setBackgroundColor(bgColor);
+    const initialWeather = weathers[Math.floor(Math.random() * weathers.length)];
+    this.clouds = [];
+    this.changeWeather(initialWeather);
 
     // Scrolling background elements (Beautiful large flowers)
     this.backgrounds = [];
@@ -68,52 +67,6 @@ export class GameScene extends Phaser.Scene {
 
       g.setX(i * this.scale.width);
       this.backgrounds.push(g);
-    }
-
-    // Weather Effects
-    if (this.weatherCondition === 'rainy') {
-      const particles = this.add.particles(0, 0, 'raindrop', {
-        x: { min: 0, max: this.scale.width },
-        y: -20,
-        lifespan: 2000,
-        speedY: { min: 600, max: 800 },
-        speedX: { min: -50, max: 0 }, // slightly slanted
-        scale: { start: 1, end: 0.5 },
-        quantity: 3
-      });
-      this.rainEmitter = particles;
-    } else if (this.weatherCondition === 'cloudy') {
-      // Draw clouds programmatically moving across sky
-      for(let i = 0; i < 4; i++) {
-        const cloud = this.add.image(Math.random() * this.scale.width, 100 + Math.random() * 200, 'cloud');
-        cloud.setAlpha(0.65);
-        cloud.setScale(0.8 + Math.random() * 0.5);
-        this.tweens.add({
-          targets: cloud,
-          x: '+=150',
-          yoyo: true,
-          repeat: -1,
-          duration: 3000 + Math.random() * 3000,
-          ease: 'Sine.easeInOut'
-        });
-      }
-    } else {
-      // Sunny - Draw a glowing cute sun in top-right
-      const sunGraphics = this.add.graphics();
-      sunGraphics.fillStyle(0xffb74d, 0.8);
-      sunGraphics.fillCircle(this.scale.width - 80, 80, 60);
-      sunGraphics.fillStyle(0xfff176, 0.9);
-      sunGraphics.fillCircle(this.scale.width - 80, 80, 45);
-      
-      // Sun rays pulse
-      this.tweens.add({
-        targets: sunGraphics,
-        scale: 1.05,
-        duration: 2000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
     }
 
     // Player
@@ -172,35 +125,15 @@ export class GameScene extends Phaser.Scene {
     const maxY = this.scale.height * 0.75;
     const yPos = minY + Math.random() * (maxY - minY);
     
-    const data = gameState.getData();
     // 1. Randomly decide reward type: color or pattern
-    let rewardType: 'color' | 'pattern' = Math.random() > 0.5 ? 'color' : 'pattern';
+    const rewardType: 'color' | 'pattern' = Math.random() > 0.5 ? 'color' : 'pattern';
     let rewardValue: number | string;
 
-    // Filter uncollected colors/patterns
-    const uncollectedColors = GAME_COLORS.filter(c => !data.collectedColors.includes(c));
-    const uncollectedPatterns = GAME_PATTERNS.filter(p => p !== 'none' && !data.collectedPatterns.includes(p));
-
-    // Force swap if one type is fully collected
-    if (rewardType === 'color' && uncollectedColors.length === 0) {
-      rewardType = 'pattern';
-    } else if (rewardType === 'pattern' && uncollectedPatterns.length === 0) {
-      rewardType = 'color';
-    }
-
     if (rewardType === 'color') {
-      if (uncollectedColors.length > 0) {
-        rewardValue = uncollectedColors[Math.floor(Math.random() * uncollectedColors.length)];
-      } else {
-        rewardValue = GAME_COLORS[Math.floor(Math.random() * GAME_COLORS.length)];
-      }
+      rewardValue = GAME_COLORS[Math.floor(Math.random() * GAME_COLORS.length)];
     } else {
-      if (uncollectedPatterns.length > 0) {
-        rewardValue = uncollectedPatterns[Math.floor(Math.random() * uncollectedPatterns.length)];
-      } else {
-        const activePatterns = GAME_PATTERNS.filter(p => p !== 'none');
-        rewardValue = activePatterns[Math.floor(Math.random() * activePatterns.length)];
-      }
+      const activePatterns = GAME_PATTERNS.filter(p => p !== 'none');
+      rewardValue = activePatterns[Math.floor(Math.random() * activePatterns.length)];
     }
 
     // 2. Randomly decide flying appearance (visual only, independent of reward)
@@ -240,6 +173,9 @@ export class GameScene extends Phaser.Scene {
     if (this.rainEmitter) {
       this.rainEmitter.pause();
     }
+    if (this.thunderTimer) {
+      this.thunderTimer.paused = true;
+    }
     
     // Clear all butterflies in the group to clean the screen and give the child breathing room
     this.qaGroup.clear(true, true);
@@ -249,10 +185,10 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('DialogScene', { rewardType: qa.rewardType, rewardValue: qa.rewardValue });
   }
 
-  private onResume() {
+  private onResume(_scene: Phaser.Scene, data?: { isCorrect: boolean }) {
     // Check end conditions
-    const data = gameState.getData();
-    if (data.hearts <= 0 || data.progress >= data.targetProgress) {
+    const gameStateData = gameState.getData();
+    if (gameStateData.hearts <= 0 || gameStateData.progress >= gameStateData.targetProgress) {
       // Fade out effect before returning
       this.cameras.main.fadeOut(1000, 255, 228, 225); // Fade to HomeScene's background pinkish color
       this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -260,6 +196,15 @@ export class GameScene extends Phaser.Scene {
         this.scene.start('HomeScene');
       });
       return;
+    }
+
+    // Handle weather change based on answer correctness
+    if (data && typeof data.isCorrect === 'boolean') {
+      if (!data.isCorrect) {
+        this.changeWeather('thunder');
+      } else if (data.isCorrect && this.weatherCondition === 'thunder') {
+        this.changeWeather('sunny');
+      }
     }
 
     // Reset collision protection
@@ -273,6 +218,174 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimer.paused = false;
     if (this.rainEmitter) {
       this.rainEmitter.resume();
+    }
+    if (this.thunderTimer) {
+      this.thunderTimer.paused = false;
+    }
+  }
+
+  private changeWeather(newWeather: 'sunny' | 'cloudy' | 'rainy' | 'thunder') {
+    if (this.weatherCondition === newWeather && (this.rainEmitter || this.clouds.length > 0 || this.sunGraphics || this.thunderTimer)) {
+      return;
+    }
+
+    const oldWeather = this.weatherCondition;
+    this.weatherCondition = newWeather;
+
+    const shouldFade = (oldWeather === 'thunder' && newWeather === 'sunny');
+    this.clearWeatherEffects();
+
+    let bgColor = 0x81d4fa;
+    switch (newWeather) {
+      case 'sunny':
+        bgColor = 0x81d4fa;
+        break;
+      case 'cloudy':
+        bgColor = 0x90a4ae;
+        break;
+      case 'rainy':
+        bgColor = 0x546e7a;
+        break;
+      case 'thunder':
+        bgColor = 0x263238; // Ultra deep slate/purple gray
+        break;
+    }
+
+    if (shouldFade) {
+      // Background color fade transition (1 second)
+      const color1 = Phaser.Display.Color.IntegerToColor(0x263238);
+      const color2 = Phaser.Display.Color.IntegerToColor(0x81d4fa);
+      let colorObj = { step: 0 };
+      this.tweens.add({
+        targets: colorObj,
+        step: 100,
+        duration: 1000,
+        ease: 'Linear',
+        onUpdate: () => {
+          const result = Phaser.Display.Color.Interpolate.ColorWithColor(color1, color2, 100, colorObj.step);
+          this.cameras.main.setBackgroundColor(Phaser.Display.Color.GetColor(result.r, result.g, result.b));
+        }
+      });
+    } else {
+      this.cameras.main.setBackgroundColor(bgColor);
+    }
+
+    if (newWeather === 'sunny') {
+      this.sunGraphics = this.add.graphics();
+      this.sunGraphics.fillStyle(0xffb74d, 0.8);
+      this.sunGraphics.fillCircle(this.scale.width - 80, 80, 60);
+      this.sunGraphics.fillStyle(0xfff176, 0.9);
+      this.sunGraphics.fillCircle(this.scale.width - 80, 80, 45);
+      
+      if (shouldFade) {
+        // Fade in the sun graphics
+        this.sunGraphics.setAlpha(0);
+        this.tweens.add({
+          targets: this.sunGraphics,
+          alpha: 1,
+          duration: 1000,
+          ease: 'Linear',
+          onComplete: () => {
+            if (this.sunGraphics) {
+              this.tweens.add({
+                targets: this.sunGraphics,
+                scale: 1.05,
+                duration: 2000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+              });
+            }
+          }
+        });
+      } else {
+        this.tweens.add({
+          targets: this.sunGraphics,
+          scale: 1.05,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    } else if (newWeather === 'cloudy') {
+      for (let i = 0; i < 4; i++) {
+        const cloud = this.add.image(Math.random() * this.scale.width, 100 + Math.random() * 200, 'cloud');
+        cloud.setAlpha(0.65);
+        cloud.setScale(0.8 + Math.random() * 0.5);
+        this.tweens.add({
+          targets: cloud,
+          x: '+=150',
+          yoyo: true,
+          repeat: -1,
+          duration: 3000 + Math.random() * 3000,
+          ease: 'Sine.easeInOut'
+        });
+        this.clouds.push(cloud);
+      }
+    } else if (newWeather === 'rainy') {
+      const particles = this.add.particles(0, 0, 'raindrop', {
+        x: { min: 0, max: this.scale.width },
+        y: -20,
+        lifespan: 2000,
+        speedY: { min: 600, max: 800 },
+        speedX: { min: -50, max: 0 },
+        scale: { start: 1, end: 0.5 },
+        quantity: 3
+      });
+      this.rainEmitter = particles;
+    } else if (newWeather === 'thunder') {
+      // Storm: heavy rain
+      const particles = this.add.particles(0, 0, 'raindrop', {
+        x: { min: 0, max: this.scale.width },
+        y: -20,
+        lifespan: 1500,
+        speedY: { min: 800, max: 1100 },
+        speedX: { min: -120, max: -40 },
+        scale: { start: 1.2, end: 0.6 },
+        quantity: 6
+      });
+      this.rainEmitter = particles;
+
+      // Trigger lightning right away
+      this.triggerLightning();
+
+      // Repeat lightning effects
+      this.thunderTimer = this.time.addEvent({
+        delay: 5000,
+        callback: () => {
+          this.triggerLightning();
+        },
+        callbackScope: this,
+        loop: true
+      });
+    }
+  }
+
+  private triggerLightning() {
+    this.cameras.main.flash(250, 255, 255, 255);
+    this.cameras.main.shake(200, 0.008);
+    // 8-bit synthetic thunder clap sound
+    soundManager.playTone(90, 0.3, 'sawtooth');
+    soundManager.playTone(50, 0.5, 'triangle', 0.08);
+  }
+
+  private clearWeatherEffects() {
+    if (this.sunGraphics) {
+      this.sunGraphics.destroy();
+      this.sunGraphics = undefined;
+    }
+    if (this.clouds.length > 0) {
+      this.clouds.forEach(c => c.destroy());
+      this.clouds = [];
+    }
+    if (this.rainEmitter) {
+      this.rainEmitter.destroy();
+      this.rainEmitter = undefined;
+    }
+    if (this.thunderTimer) {
+      this.thunderTimer.destroy();
+      this.thunderTimer = undefined;
     }
   }
 }

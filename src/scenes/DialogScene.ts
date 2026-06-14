@@ -161,9 +161,21 @@ export class DialogScene extends Phaser.Scene {
       });
     }
 
-    const msg = isCorrect 
-      ? (this.rewardType === 'color' ? '答對了！\n你解鎖了新顏色！' : '答對了！\n你解鎖了新花紋！')
-      : '可惜答錯了！\n扣了一顆愛心';
+    const isAlreadyOwned = this.rewardType === 'color'
+      ? gameState.getData().collectedColors.includes(this.rewardValue as number)
+      : gameState.getData().collectedPatterns.includes(this.rewardValue as string);
+
+    let msg = '';
+    if (isCorrect) {
+      if (this.rewardType === 'color') {
+        msg = isAlreadyOwned ? '答對了！\n你得到了這個顏色！' : '答對了！\n你解鎖了新顏色！';
+      } else {
+        msg = isAlreadyOwned ? '答對了！\n你得到了這個花紋！' : '答對了！\n你解鎖了新花紋！';
+      }
+    } else {
+      msg = '可惜答錯了！\n扣了一顆愛心';
+    }
+
     const color = isCorrect ? '#2e7d32' : '#c62828';
     const strokeColor = isCorrect ? '#e8f5e9' : '#ffebee';
 
@@ -220,7 +232,7 @@ export class DialogScene extends Phaser.Scene {
         ease: 'Back.easeIn',
         onComplete: () => {
           this.scene.stop();
-          this.scene.resume('GameScene');
+          this.scene.resume('GameScene', { isCorrect });
         }
       });
     });
