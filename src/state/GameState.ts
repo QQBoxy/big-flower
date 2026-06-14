@@ -1,16 +1,12 @@
-export interface Skin {
-  id: string;
-  color: number;
-  pattern: string;
-}
-
 export interface GameStateData {
   hearts: number;
   maxHearts: number;
   progress: number;
   targetProgress: number;
-  collectedSkins: Skin[];
-  currentSkin: Skin;
+  collectedColors: number[];
+  collectedPatterns: string[];
+  currentColor: number;
+  currentPattern: string;
 }
 
 class GameState {
@@ -23,10 +19,10 @@ class GameState {
       maxHearts: 5,
       progress: 0,
       targetProgress: 10,
-      collectedSkins: [
-        { id: 'default', color: 0xffb6c1, pattern: 'none' } // Light pink
-      ],
-      currentSkin: { id: 'default', color: 0xffb6c1, pattern: 'none' }
+      collectedColors: [0xffb6c1], // Light pink default color
+      collectedPatterns: ['none'], // default no pattern
+      currentColor: 0xffb6c1,
+      currentPattern: 'none'
     };
   }
 
@@ -58,16 +54,27 @@ class GameState {
     this.data.hearts = Math.max(this.data.hearts - amount, 0);
   }
 
-  public addSkin(skin: Skin): void {
-    if (!this.data.collectedSkins.find(s => s.id === skin.id)) {
-      this.data.collectedSkins.push(skin);
+  public addColor(color: number): void {
+    if (!this.data.collectedColors.includes(color)) {
+      this.data.collectedColors.push(color);
     }
   }
 
-  public setCurrentSkin(skinId: string): void {
-    const skin = this.data.collectedSkins.find(s => s.id === skinId);
-    if (skin) {
-      this.data.currentSkin = skin;
+  public addPattern(pattern: string): void {
+    if (!this.data.collectedPatterns.includes(pattern)) {
+      this.data.collectedPatterns.push(pattern);
+    }
+  }
+
+  public setCurrentColor(color: number): void {
+    if (this.data.collectedColors.includes(color)) {
+      this.data.currentColor = color;
+    }
+  }
+
+  public setCurrentPattern(pattern: string): void {
+    if (this.data.collectedPatterns.includes(pattern)) {
+      this.data.currentPattern = pattern;
     }
   }
 }

@@ -21,6 +21,12 @@ export class PreloadScene extends Phaser.Scene {
     rainGraphics.fillStyle(0x0000ff, 0.6);
     rainGraphics.fillEllipse(5, 10, 5, 15);
     rainGraphics.generateTexture('raindrop', 10, 20);
+    
+    // Confetti texture (for correct answers)
+    const confettiGraphics = this.make.graphics({ x: 0, y: 0 });
+    confettiGraphics.fillStyle(0xffffff, 1);
+    confettiGraphics.fillRect(0, 0, 12, 12);
+    confettiGraphics.generateTexture('confetti', 12, 12);
 
     // Add a simple loading text
     const width = this.cameras.main.width;

@@ -8,12 +8,12 @@ import { DialogScene } from './scenes/DialogScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: 720,
+  height: 1280,
   parent: 'game-container',
   backgroundColor: '#aae0fa',
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   physics: {

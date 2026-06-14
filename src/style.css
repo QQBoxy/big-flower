@@ -6,7 +6,7 @@ html, body {
   overflow: hidden;
   background-color: #aae0fa; /* soft blue sky */
   touch-action: none; /* disable browser scroll/pinch */
-  font-family: sans-serif;
+  font-family: 'Fredoka', sans-serif;
 }
 
 #game-container {

@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { gameState } from '../state/GameState';
+import { drawWingPattern } from '../utils/MathUtils';
 
 export class Player extends Phaser.GameObjects.Container {
   private bodySprite: Phaser.GameObjects.Graphics;
   private wingsSprite: Phaser.GameObjects.Graphics;
   public wingTween: Phaser.Tweens.Tween;
+  private inputBlockedUntil: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -26,78 +28,103 @@ export class Player extends Phaser.GameObjects.Container {
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCollideWorldBounds(true);
-    body.setSize(60, 60);
-    body.setOffset(-30, -30);
+    body.setSize(70, 70);
+    body.setOffset(-35, -35);
 
     // Flapping animation
     this.wingTween = scene.tweens.add({
       targets: this.wingsSprite,
       scaleY: 0.2,
-      duration: 150,
+      duration: 120,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
   }
 
+  public blockInput(duration: number): void {
+    this.inputBlockedUntil = this.scene.time.now + duration;
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setVelocityY(0);
+    }
+  }
+
   public drawSkin() {
-    const skin = gameState.getData().currentSkin;
+    const data = gameState.getData();
+    const color = data.currentColor;
+    const pattern = data.currentPattern;
     
     this.wingsSprite.clear();
     this.bodySprite.clear();
 
-    // Draw Wings
-    this.wingsSprite.fillStyle(skin.color, 1);
-    this.wingsSprite.fillEllipse(-20, 0, 40, 60); // Left wing
-    this.wingsSprite.fillEllipse(20, 0, 40, 60);  // Right wing
+    // Draw Wings (Left Top, Left Bottom, Right Top, Right Bottom)
+    this.wingsSprite.fillStyle(color, 1);
+    this.wingsSprite.lineStyle(4, 0xffffff, 1);
+    
+    // Left Wing Top
+    this.wingsSprite.fillEllipse(-22, -15, 36, 46);
+    this.wingsSprite.strokeEllipse(-22, -15, 36, 46);
+    // Left Wing Bottom
+    this.wingsSprite.fillEllipse(-16, 15, 26, 36);
+    this.wingsSprite.strokeEllipse(-16, 15, 26, 36);
+    
+    // Right Wing Top
+    this.wingsSprite.fillEllipse(22, -15, 36, 46);
+    this.wingsSprite.strokeEllipse(22, -15, 36, 46);
+    // Right Wing Bottom
+    this.wingsSprite.fillEllipse(16, 15, 26, 36);
+    this.wingsSprite.strokeEllipse(16, 15, 26, 36);
     
     // Draw pattern if any
-    if (skin.pattern === 'dots') {
-      this.wingsSprite.fillStyle(0xffffff, 0.8);
-      this.wingsSprite.fillCircle(-25, -10, 8);
-      this.wingsSprite.fillCircle(-15, 15, 6);
-      this.wingsSprite.fillCircle(25, -10, 8);
-      this.wingsSprite.fillCircle(15, 15, 6);
-    } else if (skin.pattern === 'stripes') {
-      this.wingsSprite.lineStyle(4, 0xffffff, 0.8);
-      this.wingsSprite.beginPath();
-      this.wingsSprite.moveTo(-35, -10);
-      this.wingsSprite.lineTo(-5, 0);
-      this.wingsSprite.moveTo(35, -10);
-      this.wingsSprite.lineTo(5, 0);
-      this.wingsSprite.strokePath();
-    }
+    drawWingPattern(this.wingsSprite, pattern, true, color);
+    drawWingPattern(this.wingsSprite, pattern, false, color);
 
-    // Draw Body
-    this.bodySprite.fillStyle(0x4a4a4a, 1);
-    this.bodySprite.fillRoundedRect(-8, -50, 16, 50, 8); // Body
+    // Draw Body (Cute dark body)
+    this.bodySprite.fillStyle(0x3e2723, 1);
+    this.bodySprite.fillRoundedRect(-8, -35, 16, 60, 8); // Body
+
+    // Eyes (Two tiny shiny white/black eyes)
+    this.bodySprite.fillStyle(0xffffff, 1);
+    this.bodySprite.fillCircle(-4, -25, 4);
+    this.bodySprite.fillCircle(4, -25, 4);
+    this.bodySprite.fillStyle(0x000000, 1);
+    this.bodySprite.fillCircle(-4, -25, 2);
+    this.bodySprite.fillCircle(4, -25, 2);
 
     // Draw Antennae
-    this.bodySprite.lineStyle(2, 0x4a4a4a, 1);
+    this.bodySprite.lineStyle(2, 0x3e2723, 1);
     this.bodySprite.beginPath();
-    this.bodySprite.moveTo(-4, -20);
-    this.bodySprite.lineTo(-10, -40);
-    this.bodySprite.moveTo(4, -20);
-    this.bodySprite.lineTo(10, -40);
+    this.bodySprite.moveTo(-4, -30);
+    this.bodySprite.lineTo(-12, -45);
+    this.bodySprite.moveTo(4, -30);
+    this.bodySprite.lineTo(12, -45);
     this.bodySprite.strokePath();
     
-    this.bodySprite.fillStyle(0x4a4a4a, 1);
-    this.bodySprite.fillCircle(-10, -40, 3);
-    this.bodySprite.fillCircle(10, -40, 3);
+    this.bodySprite.fillStyle(0x3e2723, 1);
+    this.bodySprite.fillCircle(-12, -45, 3);
+    this.bodySprite.fillCircle(12, -45, 3);
   }
 
   public updateMovement(cursors: Phaser.Types.Input.Keyboard.CursorKeys, pointer: Phaser.Input.Pointer) {
     const body = this.body as Phaser.Physics.Arcade.Body;
-    const speed = 300;
+    const speed = 400;
 
+    // Reset velocity
     body.setVelocityY(0);
 
-    if (cursors.up.isDown) {
+    // If input is blocked, skip movements
+    if (this.scene.time.now < this.inputBlockedUntil) {
+      return;
+    }
+
+    if (cursors && cursors.up && cursors.up.isDown) {
       body.setVelocityY(-speed);
-    } else if (cursors.down.isDown) {
+    } else if (cursors && cursors.down && cursors.down.isDown) {
       body.setVelocityY(speed);
-    } else if (pointer.isDown) {
+    } else if (pointer && pointer.isDown) {
       // Touch screen: upper half -> up, lower half -> down
+      // Respect our FIT scaling, pointer coordinate is automatically mapped
       if (pointer.y < this.scene.scale.height / 2) {
         body.setVelocityY(-speed);
       } else {

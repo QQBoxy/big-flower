@@ -1,14 +1,30 @@
 import Phaser from 'phaser';
-import { Skin } from '../state/GameState';
+import { drawWingPattern } from '../utils/MathUtils';
+
+export type RewardType = 'color' | 'pattern';
 
 export class QAButterfly extends Phaser.GameObjects.Container {
-  public skin: Skin;
+  public rewardType: RewardType;
+  public rewardValue: number | string;
+  private renderColor: number;
+  private renderPattern: string;
   private wingsSprite: Phaser.GameObjects.Graphics;
   public wingTween: Phaser.Tweens.Tween;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, skin: Skin) {
+  constructor(
+    scene: Phaser.Scene, 
+    x: number, 
+    y: number, 
+    rewardType: RewardType, 
+    rewardValue: number | string,
+    renderColor: number,
+    renderPattern: string
+  ) {
     super(scene, x, y);
-    this.skin = skin;
+    this.rewardType = rewardType;
+    this.rewardValue = rewardValue;
+    this.renderColor = renderColor;
+    this.renderPattern = renderPattern;
 
     // Wings
     this.wingsSprite = scene.add.graphics();
@@ -18,9 +34,10 @@ export class QAButterfly extends Phaser.GameObjects.Container {
     const bodySprite = scene.add.graphics();
     this.add(bodySprite);
 
-    // Question Mark
+    // Question Mark (using Fredoka font)
     const qText = scene.add.text(0, 0, '?', {
-      fontSize: '32px',
+      fontFamily: 'Fredoka',
+      fontSize: '36px',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -34,15 +51,14 @@ export class QAButterfly extends Phaser.GameObjects.Container {
     scene.physics.add.existing(this);
     
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(60, 60);
-    body.setOffset(-30, -30);
-    body.setVelocityX(-200); // Move left
+    body.setSize(70, 70);
+    body.setOffset(-35, -35);
 
     // Flapping
     this.wingTween = scene.tweens.add({
       targets: this.wingsSprite,
       scaleY: 0.3,
-      duration: 180,
+      duration: 150,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut'
@@ -50,25 +66,54 @@ export class QAButterfly extends Phaser.GameObjects.Container {
   }
 
   private drawSkin(bodySprite: Phaser.GameObjects.Graphics) {
-    // Draw Wings
-    this.wingsSprite.fillStyle(this.skin.color, 1);
-    this.wingsSprite.fillEllipse(-20, 0, 40, 60);
-    this.wingsSprite.fillEllipse(20, 0, 40, 60);
-    
-    if (this.skin.pattern === 'dots') {
-      this.wingsSprite.fillStyle(0xffffff, 0.8);
-      this.wingsSprite.fillCircle(-25, -10, 8);
-      this.wingsSprite.fillCircle(25, -10, 8);
-    } else if (this.skin.pattern === 'stripes') {
-      this.wingsSprite.lineStyle(4, 0xffffff, 0.8);
-      this.wingsSprite.beginPath();
-      this.wingsSprite.moveTo(-35, -10);
-      this.wingsSprite.lineTo(-5, 0);
-      this.wingsSprite.strokePath();
-    }
+    const wingColor = this.renderColor;
+    const pattern = this.renderPattern;
 
-    // Draw Body
-    bodySprite.fillStyle(0x333333, 1);
-    bodySprite.fillRoundedRect(-6, -40, 12, 40, 6);
+    // Draw Wings (Left Top, Left Bottom, Right Top, Right Bottom)
+    this.wingsSprite.fillStyle(wingColor, 1);
+    this.wingsSprite.lineStyle(4, 0xffffff, 1);
+
+    // Left Wing Top
+    this.wingsSprite.fillEllipse(-22, -15, 36, 46);
+    this.wingsSprite.strokeEllipse(-22, -15, 36, 46);
+    // Left Wing Bottom
+    this.wingsSprite.fillEllipse(-16, 15, 26, 36);
+    this.wingsSprite.strokeEllipse(-16, 15, 26, 36);
+    
+    // Right Wing Top
+    this.wingsSprite.fillEllipse(22, -15, 36, 46);
+    this.wingsSprite.strokeEllipse(22, -15, 36, 46);
+    // Right Wing Bottom
+    this.wingsSprite.fillEllipse(16, 15, 26, 36);
+    this.wingsSprite.strokeEllipse(16, 15, 26, 36);
+    
+    // Draw patterns
+    drawWingPattern(this.wingsSprite, pattern, true, wingColor);
+    drawWingPattern(this.wingsSprite, pattern, false, wingColor);
+
+    // Draw Body (Cute dark body)
+    bodySprite.fillStyle(0x3e2723, 1);
+    bodySprite.fillRoundedRect(-8, -35, 16, 60, 8); // Body
+
+    // Eyes (Two tiny shiny white/black eyes)
+    bodySprite.fillStyle(0xffffff, 1);
+    bodySprite.fillCircle(-4, -25, 4);
+    bodySprite.fillCircle(4, -25, 4);
+    bodySprite.fillStyle(0x000000, 1);
+    bodySprite.fillCircle(-4, -25, 2);
+    bodySprite.fillCircle(4, -25, 2);
+
+    // Draw Antennae
+    bodySprite.lineStyle(2, 0x3e2723, 1);
+    bodySprite.beginPath();
+    bodySprite.moveTo(-4, -30);
+    bodySprite.lineTo(-12, -45);
+    bodySprite.moveTo(4, -30);
+    bodySprite.lineTo(12, -45);
+    bodySprite.strokePath();
+    
+    bodySprite.fillStyle(0x3e2723, 1);
+    bodySprite.fillCircle(-12, -45, 3);
+    bodySprite.fillCircle(12, -45, 3);
   }
 }
